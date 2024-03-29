@@ -17,3 +17,5 @@ Only one USB Relay device can opened and controlled with each instance of the cl
 * .NET Framework: 4.5, Build platform: x86, x64 or AnyCPU
 * Libarary has been tested in applications compiled for 32 bit and 64 bit CPUs in Windows 7/10/11
 * Built using Visual Studio 2014 Pro and Visual Studio 2022 Pro
+## HIDusbRelay_Test
+Application for testing USB Relay Devices. Uses all public methods and properties acvailable in the USBrelayDeviceNET class, providing examples of thier usage.
