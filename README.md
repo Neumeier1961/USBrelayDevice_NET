@@ -1,6 +1,6 @@
 # USBrelayDevice_NET
 A C# library that provides methods to control HID compliant USB Relay Devices. The library uses native function calls to standard Windows APIs for communicating with the USB Relay devices.
-Note: This mis NOT a wrapper for the usb_relay_device.dll
+Note: This mis NOT a wrapper for the usb_relay_device.dll, but a .NET alternative for controlling the same devices.
 #
 Only one USB Relay device can opened and controlled with each instance of the class, to open multiple devices connected to a system, a new instance of the class must be created for each device.
 #
