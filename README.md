@@ -9,14 +9,11 @@ Only one USB Relay device can opened and controlled with each instance of the cl
 * Set/Edit device ID/serial number
 * Error event
 * No third party libraries required
+* All properties and methods contained in a single class
 * Class can be added to a project or compiled as a class library
 ### Notes
-References Used: Sysytem and System.Core
-#
-Native Libraries used: hid.dll, setupapi.dll and kernel32.dll
-# 
-.NET Framework: 4.5, Build platform: x86, x64 or AnyCPU
-# 
-Libarary has been tested in applications compiled for 32 bit and 64 bit CPUs in Windows 7/10/11
-# 
-Built using Visual Studio 2014 Pro and Visual Studio 2022 Pro
+* References Used: Sysytem and System.Core
+* Native Libraries used: hid.dll, setupapi.dll and kernel32.dll
+* .NET Framework: 4.5, Build platform: x86, x64 or AnyCPU
+* Libarary has been tested in applications compiled for 32 bit and 64 bit CPUs in Windows 7/10/11
+* Built using Visual Studio 2014 Pro and Visual Studio 2022 Pro
