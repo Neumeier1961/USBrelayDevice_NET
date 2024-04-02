@@ -764,7 +764,7 @@ namespace USBrelayDeviceNET
                 // https://learn.microsoft.com/en-us/windows-hardware/drivers/hid/finding-and-opening-a-hid-collection
                 // Note: there are two function prototypes for the SetupDiGetDeviceInterfaceDetail() function,
                 // One is used to get the size of the SP_DEVICE_INTERFACE_DETAIL_DATA structure and the other is 
-                // called to get the SP_DEVICE_INTERFACE_DETAIL_DATA structure data.
+                // called to get the SP_DEVICE_INTERFACE_DETAIL_DATA structure data, which contains the device path.
 
                 // Get HID GUID
                 Guid HIDguid;
@@ -815,20 +815,20 @@ namespace USBrelayDeviceNET
                         devIndex++;
 
                         // call SetupDiGetDeviceInterfaceDetail to get size of deviceInterfaceDetailData structure, ignore return value
-                        uint size;
+                        uint requiredSize;
                         NativeMethods.SetupDiGetDeviceInterfaceDetail(
                             pDeviceInfoSet,
                             ref deviceInterfaceData,
                             IntPtr.Zero, 
                             0,
-                            out size,
+                            out requiredSize,
                             IntPtr.Zero);
 
                         // if failed to get size for Device Interface Detail Data, go to next device
-                        if (size == 0) continue;
+                        if (requiredSize == 0) continue;
 
                         // set default size parameter for SetupDiGetDeviceInterfaceDetail function
-                        var nBytes = size;
+                        var deviceInterfaceDetailDataSize = requiredSize;
 
                         // initialize DeviceInterfaceDetailData structure and set the cbSize property for 32 bit / 64 bit compatability
                         // in 32-bit the size is adjusted for the System Default Char Size (1 for ASCII and 2 for Unicode)
@@ -843,8 +843,8 @@ namespace USBrelayDeviceNET
                             pDeviceInfoSet,
                             ref deviceInterfaceData,
                             ref deviceInterfaceDetailData,
-                            nBytes,
-                            out size,
+                            deviceInterfaceDetailDataSize,
+                            out requiredSize,
                             IntPtr.Zero);
 
                         // if fails or no device path skip device
@@ -874,7 +874,7 @@ namespace USBrelayDeviceNET
                     }
                     finally
                     {
-                        // free resources and reset pointers for next iteration
+                        // free resource and reset pointer for next iteration
                         if (pHandle != IntPtr.Zero)
                         {
                             NativeMethods.CloseHandle(pHandle);
