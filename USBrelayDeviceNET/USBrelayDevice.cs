@@ -1196,13 +1196,12 @@ namespace USBrelayDeviceNET
                 ref SP_DEVICE_INTERFACE_DATA DeviceInterfaceData);
 
             /// <summary>
-            /// Function returns details about a device interface. (Used to size of SP_DEVICE_INTERFACE_DETAIL_DATA structure.
+            /// Function Used to get size of SP_DEVICE_INTERFACE_DETAIL_DATA structure for overload function.
             /// </summary>
             /// <param name="DeviceInfoSet">pointer to the device information set, typically returned by SetupDiEnumDeviceInterfaces.</param>
             /// <param name="DeviceInterfaceData">reference to a SP_DEVICE_INTERFACE_DATA structure</param>
-            /// <param name="DeviceInterfaceDetailData">pointer to a SP_DEVICE_INTERFACE_DETAIL_DATA structure.</param>
-            /// <param name="DeviceInterfaceDetailDataSize">The size of the DeviceInterfaceDetailData buffer.
-            /// Must be zero if DeviceInterfaceDetailData is zero</param>
+            /// <param name="DeviceInterfaceDetailData">pass null pointer.</param>
+            /// <param name="DeviceInterfaceDetailDataSize">pass zero.</param>
             /// <param name="RequiredSize">variable that receives the required size of the DeviceInterfaceDetailData buffer.</param>
             /// <param name="DeviceInfoData">pointer to a buffer that receives information about the device</param>
             /// <returns>returns TRUE if the function completed without error.</returns>
@@ -1217,13 +1216,12 @@ namespace USBrelayDeviceNET
                 IntPtr DeviceInfoData);
 
             /// <summary>
-            /// Function returns details about a device interface.
+            /// Function overload returns details about a device interface (device path).
             /// </summary>
             /// <param name="DeviceInfoSet">pointer to the device information set, typically returned by SetupDiEnumDeviceInterfaces.</param>
             /// <param name="DeviceInterfaceData">reference to a SP_DEVICE_INTERFACE_DATA structure</param>
             /// <param name="DeviceInterfaceDetailData">reference to a SP_DEVICE_INTERFACE_DETAIL_DATA structure.</param>
-            /// <param name="DeviceInterfaceDetailDataSize">The size of the DeviceInterfaceDetailData buffer.
-            /// Must be zero if DeviceInterfaceDetailData is zero</param>
+            /// <param name="DeviceInterfaceDetailDataSize">The size of the DeviceInterfaceDetailData buffer.</param>
             /// <param name="RequiredSize">variable that receives the required size of the DeviceInterfaceDetailData buffer.</param>
             /// <param name="DeviceInfoData">pointer to a buffer that receives information about the device</param>
             /// <returns>returns TRUE if the function completed without error.</returns>
