@@ -101,7 +101,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace USBrelayDeviceNET
@@ -735,7 +734,7 @@ namespace USBrelayDeviceNET
             var pHandle = new IntPtr(); //pointer to device handle
 
             // structure declarations
-            var deviceInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api calls, members not used
+            var deviceInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api calls
             var deviceAttributes = new NativeMethods.HIDD_ATTRIBUTES(); //HID device attributes
 
             // Set the size parameter for the structures
