@@ -52,7 +52,6 @@
             this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.clearToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.dllVerToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.label4 = new System.Windows.Forms.Label();
@@ -313,7 +312,6 @@
             // 
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.errorLogToolStripMenuItem,
-            this.dllVerToolStripMenuItem,
             this.toolStripSeparator1,
             this.closeToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
@@ -327,7 +325,7 @@
             this.openToolStripMenuItem,
             this.clearToolStripMenuItem});
             this.errorLogToolStripMenuItem.Name = "errorLogToolStripMenuItem";
-            this.errorLogToolStripMenuItem.Size = new System.Drawing.Size(122, 22);
+            this.errorLogToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.errorLogToolStripMenuItem.Text = "Error Log";
             // 
             // saveToolStripMenuItem
@@ -351,22 +349,15 @@
             this.clearToolStripMenuItem.Text = "Clear";
             this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
             // 
-            // dllVerToolStripMenuItem
-            // 
-            this.dllVerToolStripMenuItem.Name = "dllVerToolStripMenuItem";
-            this.dllVerToolStripMenuItem.Size = new System.Drawing.Size(122, 22);
-            this.dllVerToolStripMenuItem.Text = "DLL Info";
-            this.dllVerToolStripMenuItem.Click += new System.EventHandler(this.dllVerToolStripMenuItem_Click);
-            // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(119, 6);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(177, 6);
             // 
             // closeToolStripMenuItem
             // 
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(122, 22);
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.closeToolStripMenuItem.Text = "Close";
             this.closeToolStripMenuItem.Click += new System.EventHandler(this.closeToolStripMenuItem_Click);
             // 
@@ -384,11 +375,6 @@
             this.nud_relay.Location = new System.Drawing.Point(343, 39);
             this.nud_relay.Maximum = new decimal(new int[] {
             16,
-            0,
-            0,
-            0});
-            this.nud_relay.Minimum = new decimal(new int[] {
-            1,
             0,
             0,
             0});
@@ -723,7 +709,6 @@
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label lb_DeviceInfo;
-        private System.Windows.Forms.ToolStripMenuItem dllVerToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.Button btn_Copy;
         private System.Windows.Forms.Label label2;

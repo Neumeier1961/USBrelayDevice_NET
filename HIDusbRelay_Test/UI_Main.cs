@@ -367,8 +367,7 @@ namespace HIDusbRelay_Test
         {
             if (cb_Devices.Items.Count <= 1) return;
 
-            var info = USBrelayDevice.GetLibraryInfo();
-            var str = "Lib: " + info[0] + ", ver: " + info[1] + "\n";
+            var str = "Device Information\n";
             for (var i = 0; i < deviceInfo.Length; i++)
             {
                 str = str + "\nIndex: " + (i + 1)
@@ -409,12 +408,6 @@ namespace HIDusbRelay_Test
         private void closeToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Close();
-        }
-
-        private void dllVerToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            var info = USBrelayDevice.GetLibraryInfo();
-            MessageBox.Show(info[0] + "\nVersion: " + info[1], "DLL Information");
         }
 
         #endregion
