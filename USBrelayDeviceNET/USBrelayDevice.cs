@@ -701,7 +701,7 @@ namespace USBrelayDeviceNET
                 var rpt_buffer = new byte[] { 0x00, 0xFA, (byte)id[0], (byte)id[1], (byte)id[2], (byte)id[3], (byte)id[4], 0x00, 0x00 };
 
                 // send report buffer to device to change ID
-                return HID_FeatureReport(SET, ref rpt_buffer);
+                return HID_Feature(SET, ref rpt_buffer);
             }
             catch (Exception ex)
             {
@@ -709,19 +709,6 @@ namespace USBrelayDeviceNET
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Gets the name and version number of library
-        /// </summary>
-        /// <returns>returns string array, index [0] : Libarary name, index [1] : version number</returns>
-        public static string[] GetLibraryInfo()
-        {
-            var info = new string[2];
-            var attributes = Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(AssemblyFileVersionAttribute), false);
-            info[0] = Assembly.GetExecutingAssembly().GetName().Name + ".dll";
-            info[1] = attributes.Length == 0 ? "Unknown" : ((AssemblyFileVersionAttribute)attributes[0]).Version;
-            return info;
         }
 
         #endregion
@@ -756,7 +743,7 @@ namespace USBrelayDeviceNET
             deviceAttributes.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
             
             // loop variable declaration
-            uint devIndex = 0; //device enumeration interface indexer
+            uint memberIndex = 0; //device enumeration interface indexer
 
             try
             {
@@ -794,7 +781,7 @@ namespace USBrelayDeviceNET
                             pDeviceInfoSet,
                             IntPtr.Zero,
                             ref HIDguid,
-                            devIndex,
+                            memberIndex,
                             ref deviceInterfaceData);
 
                         // if fails stop device enumeration, occurs when there are no more HID devices
@@ -812,7 +799,7 @@ namespace USBrelayDeviceNET
                         }
 
                         // advance device enumeration index for next iteration
-                        devIndex++;
+                        memberIndex++;
 
                         // call SetupDiGetDeviceInterfaceDetail to get size of deviceInterfaceDetailData structure, ignore return value
                         uint requiredSize;
@@ -943,7 +930,7 @@ namespace USBrelayDeviceNET
         /// <param name="command_type">0 = SET feature, 1= GET feature</param>
         /// <param name="report_buffer">byte array, 9 elements in length</param>
         /// <returns>true if success, false if failed</returns>
-        private bool HID_FeatureReport(int command_type, ref byte[] report_buffer)
+        private bool HID_Feature(int command_type, ref byte[] report_buffer)
         {
             if (pDevice == IntPtr.Zero | report_buffer.Length != 9) return false;
 
@@ -1053,7 +1040,7 @@ namespace USBrelayDeviceNET
             // send command buffer to device
             try
             {
-                result = HID_FeatureReport(SET, ref rpt_buffer);
+                result = HID_Feature(SET, ref rpt_buffer);
 
                 if (!result) return false;
 
@@ -1094,7 +1081,7 @@ namespace USBrelayDeviceNET
             try
             {
                 // send get data command to device
-                var result = HID_FeatureReport(GET, ref rpt_buffer);
+                var result = HID_Feature(GET, ref rpt_buffer);
 
                 if (!result) return new bool[8];
 
@@ -1143,7 +1130,7 @@ namespace USBrelayDeviceNET
             {
                 public uint cbSize;
 
-                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 4096)]
                 public readonly string DevicePath;
             }
 
@@ -1204,7 +1191,7 @@ namespace USBrelayDeviceNET
             /// <param name="DeviceInterfaceDetailDataSize">pass zero.</param>
             /// <param name="RequiredSize">variable that receives the required size of the DeviceInterfaceDetailData buffer.</param>
             /// <param name="DeviceInfoData">pointer to a buffer that receives information about the device</param>
-            /// <returns>returns TRUE if the function completed without error.</returns>
+            /// <returns>Ignore return value.</returns>
             /// ref: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdigetdeviceinterfacedetaila
             [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
             public static extern bool SetupDiGetDeviceInterfaceDetail(
@@ -1216,7 +1203,7 @@ namespace USBrelayDeviceNET
                 IntPtr DeviceInfoData);
 
             /// <summary>
-            /// Function overload returns details about a device interface (device path).
+            /// Function overload returns details about a device interface (device path in SP_DEVICE_INTERFACE_DETAIL_DATA structure).
             /// </summary>
             /// <param name="DeviceInfoSet">pointer to the device information set, typically returned by SetupDiEnumDeviceInterfaces.</param>
             /// <param name="DeviceInterfaceData">reference to a SP_DEVICE_INTERFACE_DATA structure</param>
