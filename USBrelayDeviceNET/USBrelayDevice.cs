@@ -535,7 +535,7 @@ namespace USBrelayDeviceNET
             if (DeviceOpen)
             {
                 relay_count = localDeviceList[device_index].relay_Count;
-                GetRelayStates();
+                UpdateRelayStatus();
             }
 
             return DeviceOpen;
@@ -587,7 +587,7 @@ namespace USBrelayDeviceNET
             if (DeviceOpen)
             {
                 relay_count = localDeviceList[index].relay_Count;
-                GetRelayStates();
+                UpdateRelayStatus();
             }
             
             return DeviceOpen;
@@ -732,7 +732,7 @@ namespace USBrelayDeviceNET
             var DevicePathList = new List<string>(); //return List
 
             // pointer declarations
-            var pDeviceInfoSet = new IntPtr(); //pointer to device info set
+            var pDeviceInfoSet = new IntPtr(); //pointer to device information set
             var pDevDetailData = new IntPtr(); //pointer to SP_DEVICE_INTERFACE_DETAIL_DATA structure
             var pHandle = new IntPtr(); //pointer to device handle
 
@@ -783,11 +783,10 @@ namespace USBrelayDeviceNET
                             memberIndex,
                             ref deviceInterfaceData);
 
-                        // if fails stop device enumeration, occurs when there are no more HID devices
-                        if (!result)
+                        if (!result) // if fails stop device enumeration, occurs when there are no more HID devices
                         {
+                            // check that error code = ERROR_NO_MORE_ITEMS (0x103), if not throw error
                             var error_codec = GetLastError();
-                            // check that error code = ERROR_NO_MORE_ITEMS, if not throw error
                             if (!error_codec.Equals(0x103))
                             {
                                 Error_Handler("Error getting device interface.",
@@ -810,8 +809,7 @@ namespace USBrelayDeviceNET
                             out reqSize,
                             IntPtr.Zero);
 
-                        //if fail to size skip device
-                        if (reqSize == 0) continue;
+                        if (reqSize == 0) continue; //if fails, go to next device
 
                         // set size parameter
                         var dataSize = reqSize;
@@ -832,31 +830,28 @@ namespace USBrelayDeviceNET
                             out reqSize,
                             IntPtr.Zero);
 
-                        // if fails, skip device
-                        if (!result | pDevDetailData == IntPtr.Zero) continue;
+                        if (!result | pDevDetailData == IntPtr.Zero) continue;  //if fails, go to next device
 
                         // pass data to device interface detail data structure
                         var devDetailData = 
-                            (SP_DEVICE_INTERFACE_DETAIL_DATA)Marshal.PtrToStructure(pDevDetailData,
+                            (SP_DEVICE_INTERFACE_DETAIL_DATA) Marshal.PtrToStructure(pDevDetailData,
                             typeof(SP_DEVICE_INTERFACE_DETAIL_DATA));
 
-                        // if failed to get device path, skip device
+                        // if failed to get device path, go to next device
                         if(string.IsNullOrEmpty(devDetailData.DevicePath)) continue;
 
                         // open device, returns a handle pointer to opened device
                         pHandle = HID_OpenDdevice(devDetailData.DevicePath, true);
 
-                        // if fails skip device
-                        if (pHandle == IntPtr.Zero) continue;
+                        if (pHandle == IntPtr.Zero) continue;  //if fails, go to next device
 
                         // Get the device attributes to be used for device validation
                         result = HidD_GetAttributes( pHandle, ref deviceAttributes);
 
-                        // if fails skip device
-                        if (!result) continue;
+                        if (!result) continue;  //if fails, go to next device
 
-                        // If PID and VID are both set to 0, skip mathc check and add device path to list
-                        // check device matches defined vid and pid values, if no-match skip device
+                        // If PID and VID are both set to 0, skip match check and add device path to list
+                        // check device matches defined vid and pid values, if no-match go to next device
                         if (!(PID == 0x00 & VID == 0x00) && 
                             (deviceAttributes.ProductID != PID | deviceAttributes.VendorID != VID)) continue;
 
@@ -1011,8 +1006,8 @@ namespace USBrelayDeviceNET
             }
 
             // initialize arrays
-            var validate = new bool[8];
             var rpt_buffer = new byte[9];
+            var validate = new bool[8];
 
             // set values for report buffer and validation arrays
             if (relay_num == 0) // All Relays
@@ -1039,16 +1034,17 @@ namespace USBrelayDeviceNET
                 else
                 {
                     rpt_buffer[1] = 0xFD;
-                }   
-                
-                validate = GetRelayStates();
+                }
+
+                UpdateRelayStatus();
+                Array.Copy(RelayStatus,validate,8);
                 validate[relay_num - 1] = state;
             }
             rpt_buffer[2] = (byte)relay_num;
 
             // check if relay states are already set
-            var check = GetRelayStates();
-            var result = validate.SequenceEqual(check);
+            UpdateRelayStatus();
+            var result = validate.SequenceEqual(RelayStatus);
             if (result) return true;
 
             // send command buffer to device
@@ -1059,8 +1055,8 @@ namespace USBrelayDeviceNET
                 if (!result) return false;
 
                 // check relay states set correctly
-                check = GetRelayStates();
-                result = validate.SequenceEqual(check);
+                UpdateRelayStatus();
+                result = validate.SequenceEqual(RelayStatus);
                 if (result) return true;
 
                 Error_Handler("Error validating relay states.",
@@ -1076,17 +1072,16 @@ namespace USBrelayDeviceNET
         }
 
         /// <summary>
-        /// Get the current states of all relays
+        /// Updates the RelayStatus property with the current state of all relays
         /// </summary>
-        /// <returns>array of relay states, true = ON and false = OFF</returns>
-        /// <remarks>return array index 0 = relay 1, index 1 = relay 2...</remarks>
-        private bool[] GetRelayStates()
+        private void UpdateRelayStatus()
         {
             // check that a device is open
             if (pDevice == IntPtr.Zero | !DeviceOpen)
             {
                 Error_Handler("Device is not connected/open.", "GetRelayStatus()", null, 0);
-                return new bool[8];
+                RelayStatus = new bool[8];
+                return;
             }
 
             // initialize report buffer
@@ -1097,7 +1092,11 @@ namespace USBrelayDeviceNET
                 // send get data command to device
                 var result = HID_Feature(GET, ref rpt_buffer);
 
-                if (!result) return new bool[8];
+                if (!result)
+                {
+                    RelayStatus = new bool[8];
+                    return;
+                }
 
                 // create bit array from relay status byte value
                 var bitarry = new BitArray(new[] { rpt_buffer[8] });
@@ -1108,13 +1107,14 @@ namespace USBrelayDeviceNET
 
                 // Update RelayStatus property and return relay status array
                 Array.Copy(status, RelayStatus, 8);
-                return status;
+                return;
             }
             catch (Exception ex)
             {
                 Error_Handler("Exception", "GetRelayStates() - ", ex, 0);
             }
-            return new bool[8];
+
+            RelayStatus = new bool[8];
         }
 
         #endregion
