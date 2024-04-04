@@ -1003,14 +1003,12 @@ namespace USBrelayDeviceNET
                     rpt_buffer[1] = 0xFD;
                 }
 
-                UpdateRelayStatus();
                 Array.Copy(RelayStatus,validate,8);
                 validate[relay_num - 1] = state;
             }
             rpt_buffer[2] = (byte)relay_num;
 
             // check if relay states are already set
-            UpdateRelayStatus();
             var result = validate.SequenceEqual(RelayStatus);
             if (result) return true;
 
