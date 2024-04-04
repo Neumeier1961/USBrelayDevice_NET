@@ -1101,12 +1101,9 @@ namespace USBrelayDeviceNET
                 // create bit array from relay status byte value
                 var bitarry = new BitArray(new[] { rpt_buffer[8] });
 
-                //convert bit array to bool array
-                var status = new bool[8];
-                bitarry.CopyTo(status, 0);
+                // Update RelayStatus property from bit array
+                bitarry.CopyTo(RelayStatus, 0);
 
-                // Update RelayStatus property and return relay status array
-                Array.Copy(status, RelayStatus, 8);
                 return;
             }
             catch (Exception ex)
