@@ -740,9 +740,7 @@ namespace USBrelayDeviceNET
             var deviceAttributes = new NativeMethods.HIDD_ATTRIBUTES(); //HID device attributes
 
             // Set the size parameter for the structures
-            devDetailData.cbSize = (uint)((IntPtr.Size == sizeof(int))? 
-                (IntPtr.Size + Marshal.SystemDefaultCharSize)
-                : IntPtr.Size);
+            devDetailData.cbSize = (uint)(IntPtr.Size == sizeof(int)? IntPtr.Size + Marshal.SystemDefaultCharSize : IntPtr.Size);
             deviceInterfaceData.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
             deviceAttributes.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
             
@@ -777,7 +775,7 @@ namespace USBrelayDeviceNET
                 {
                     try
                     {
-                        // Get a pointer to device information interface from the device information set at member index
+                        // get device interface data from the device information set at member index
                         var result = NativeMethods.SetupDiEnumDeviceInterfaces(
                             pDeviceInfoSet,
                             IntPtr.Zero,
@@ -813,21 +811,23 @@ namespace USBrelayDeviceNET
                         // if failed to get device path, go to next device
                         if(!result | string.IsNullOrEmpty(devDetailData.DevicePath)) continue;
 
-                        // open device, returns a handle pointer to opened device
+                        // open device, returns a handle to opened device
                         pHandle = HID_OpenDdevice(devDetailData.DevicePath, true);
 
                         if (pHandle == IntPtr.Zero) continue;  //if fails, go to next device
 
-                        // Get the device attributes to be used for device validation
-                        result = NativeMethods.HidD_GetAttributes( pHandle, ref deviceAttributes);
+                        // If PID and VID are both set to 0, skip VID/PID validation and add device path to list
+                        if (!(PID == 0x00 & VID == 0x00))
+                        {
+                            // Get the device attributes to be used for device validation
+                            result = NativeMethods.HidD_GetAttributes(pHandle, ref deviceAttributes);
 
-                        if (!result) continue;  //if fails, go to next device
+                            if (!result) continue;  //if fails, go to next device
 
-                        // If PID and VID are both set to 0, skip match check and add device path to list
-                        // check device matches defined vid and pid values, if no-match go to next device
-                        if (!(PID == 0x00 & VID == 0x00) && 
-                            (deviceAttributes.ProductID != PID | deviceAttributes.VendorID != VID)) continue;
-
+                            // check device matches defined vid and pid values, if no-match go to next device
+                            if (deviceAttributes.ProductID != PID | deviceAttributes.VendorID != VID) continue;
+                        }
+                        
                         // device found, update device path list
                         DevicePathList.Add(devDetailData.DevicePath);
                     }
