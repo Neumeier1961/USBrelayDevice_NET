@@ -735,13 +735,14 @@ namespace USBrelayDeviceNET
             var pHandle = new IntPtr(); //pointer to device handle
 
             // structure declarations
-            var devDetailData = new NativeMethods.SP_DEVICE_INTERFACE_DETAIL_DATA(); // device detail data, contains data path
-            var deviceInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api calls
+            var devInterfaceDetailData = new NativeMethods.SP_DEVICE_INTERFACE_DETAIL_DATA(); // device detail data, contains data path
+            var devInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api calls
             var deviceAttributes = new NativeMethods.HIDD_ATTRIBUTES(); //HID device attributes
 
             // Set the size parameter for the structures
-            devDetailData.cbSize = (uint)(IntPtr.Size == sizeof(int)? IntPtr.Size + Marshal.SystemDefaultCharSize : IntPtr.Size);
-            deviceInterfaceData.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
+            devInterfaceDetailData.cbSize = (uint)(IntPtr.Size == sizeof(int)? 
+                IntPtr.Size + Marshal.SystemDefaultCharSize : IntPtr.Size);
+            devInterfaceData.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
             deviceAttributes.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
             
             // loop variable declaration
@@ -781,7 +782,7 @@ namespace USBrelayDeviceNET
                             IntPtr.Zero,
                             ref HIDguid,
                             memberIndex,
-                            ref deviceInterfaceData);
+                            ref devInterfaceData);
 
                         if (!result) // if fails stop device enumeration, occurs when there are no more HID devices
                         {
@@ -802,17 +803,17 @@ namespace USBrelayDeviceNET
                         // get path to device (found in SP_DEVICE_INTERFACE_DETAIL_DATA structure)
                         result = NativeMethods.SetupDiGetDeviceInterfaceDetail(
                             pDeviceInfoSet,
-                            ref deviceInterfaceData,
-                            ref devDetailData,
+                            ref devInterfaceData,
+                            ref devInterfaceDetailData,
                             4096,
                             0,
                             IntPtr.Zero);
 
                         // if failed to get device path, go to next device
-                        if(!result | string.IsNullOrEmpty(devDetailData.DevicePath)) continue;
+                        if(!result | string.IsNullOrEmpty(devInterfaceDetailData.DevicePath)) continue;
 
                         // open device, returns a handle to opened device
-                        pHandle = HID_OpenDdevice(devDetailData.DevicePath, true);
+                        pHandle = HID_OpenDdevice(devInterfaceDetailData.DevicePath, true);
 
                         if (pHandle == IntPtr.Zero) continue;  //if fails, go to next device
 
@@ -829,7 +830,7 @@ namespace USBrelayDeviceNET
                         }
                         
                         // device found, update device path list
-                        DevicePathList.Add(devDetailData.DevicePath);
+                        DevicePathList.Add(devInterfaceDetailData.DevicePath);
                     }
                     catch (Exception ex)
                     {
@@ -1101,7 +1102,7 @@ namespace USBrelayDeviceNET
             }
 
             // reference: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/ns-setupapi-sp_device_interface_detail_data_a
-            [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Unicode)]
+            [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Auto)]
             public struct SP_DEVICE_INTERFACE_DETAIL_DATA
             {
                 public uint cbSize;
