@@ -723,10 +723,6 @@ namespace USBrelayDeviceNET
         /// <returns>returns a string array of paths to devices with matching VID and PID values</returns>
         private string[] HID_GetDevicePaths(ushort VID, ushort PID)
         {
-            // Flags used by SetupDiGetClassDevs function (see Microsoft docs for detailed description)
-            const uint DIGCF_PRESENT = 0x02; // devices that are currently present in a system
-            const uint DIGCF_DEVICEINTERFACE = 0x10; // devices that support device interfaces
-
             // initialize device path list
             var DevicePathList = new List<string>(); //return List
 
@@ -762,7 +758,7 @@ namespace USBrelayDeviceNET
                     ref HIDguid,
                     null,
                     IntPtr.Zero,
-                    DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
+                    NativeMethods.DIGCF_DEVICEINTERFACE | NativeMethods.DIGCF_PRESENT);
 
                 if (pDeviceInfoSet == IntPtr.Zero) //if fails, end device search
                 {
@@ -787,11 +783,11 @@ namespace USBrelayDeviceNET
                         if (!result) // if fails stop device enumeration, occurs when there are no more HID devices
                         {
                             // check that error code = ERROR_NO_MORE_ITEMS (0x103), if not throw error
-                            var error_codec = NativeMethods.GetLastError();
-                            if (!error_codec.Equals(0x103))
+                            var error_code = NativeMethods.GetLastError();
+                            if (!error_code.Equals(0x103))
                             {
                                 Error_Handler("Error getting device interface.",
-                                    "NativeMethods.SetupDiEnumDeviceInterfaces()", null, error_codec);
+                                    "NativeMethods.SetupDiEnumDeviceInterfaces()", null, error_code);
                             }
                                 
                             break;
@@ -805,12 +801,12 @@ namespace USBrelayDeviceNET
                             pDeviceInfoSet,
                             ref devInterfaceData,
                             ref devInterfaceDetailData,
-                            4096,
+                            NativeMethods.DEFAULT_SIZE,
                             0,
                             IntPtr.Zero);
 
                         // if failed to get device path, go to next device
-                        if(!result | string.IsNullOrEmpty(devInterfaceDetailData.DevicePath)) continue;
+                        if (!result | string.IsNullOrEmpty(devInterfaceDetailData.DevicePath)) continue;
 
                         // open device, returns a handle to opened device
                         pHandle = HID_OpenDdevice(devInterfaceDetailData.DevicePath, true);
@@ -868,21 +864,14 @@ namespace USBrelayDeviceNET
         /// <returns>on success returns handle to device, if fails returns 0</returns>
         private IntPtr HID_OpenDdevice(string devicePath, bool suppressError)
         {
-            // Create File Flags (see Microsoft docs for details)
-            const uint GENERIC_READ = 0x80000000; // Read access
-            const uint GENERIC_WRITE = 0x40000000; // Write access
-            const uint FILE_SHARE_READ = 0x00000001; // Enables subsequent open operations on a file or device to request read access.
-            const uint FILE_SHARE_WRITE = 0x00000002; // Enables subsequent open operations on a file or device to request write access.
-            const uint OPEN_EXISTING = 3; // Opens a file or device, only if it exists.
-
             try
             {
                 var pHandle = NativeMethods.CreateFile(
                     devicePath,
-                    GENERIC_READ | GENERIC_WRITE,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE,
+                    NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_WRITE,
                     IntPtr.Zero,
-                    OPEN_EXISTING,
+                    NativeMethods.OPEN_EXISTING,
                     0,
                     IntPtr.Zero);
 
@@ -1089,6 +1078,19 @@ namespace USBrelayDeviceNET
         /// </summary>
         internal static class NativeMethods
         {
+            #region Constants and Flags
+
+            public const uint DIGCF_PRESENT = 0x02; // devices that are currently present in a system
+            public const uint DIGCF_DEVICEINTERFACE = 0x10; // devices that support device interfaces
+            public const uint DEFAULT_SIZE = 0x0FFF;
+            public const uint GENERIC_READ = 0x80000000; // Read access
+            public const uint GENERIC_WRITE = 0x40000000; // Write access
+            public const uint FILE_SHARE_READ = 0x00000001; // Enables subsequent open operations on a file or device to request read access.
+            public const uint FILE_SHARE_WRITE = 0x00000002; // Enables subsequent open operations on a file or device to request write access.
+            public const uint OPEN_EXISTING = 3; // Opens a file or device, only if it exists.
+
+            #endregion
+
             #region Structures
 
             // reference: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/ns-setupapi-sp_device_interface_data
@@ -1107,7 +1109,7 @@ namespace USBrelayDeviceNET
             {
                 public uint cbSize;
 
-                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 4096)]
+                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int) DEFAULT_SIZE)]
                 public readonly string DevicePath;
             }
 
