@@ -1080,13 +1080,13 @@ namespace USBrelayDeviceNET
         {
             #region Constants and Flags
 
-            public const uint DIGCF_PRESENT = 0x02; // devices that are currently present in a system
-            public const uint DIGCF_DEVICEINTERFACE = 0x10; // devices that support device interfaces
             public const uint DETAIL_DATA_SIZE = 0x0FFF; // sets default size of device interface detail data
-            public const uint GENERIC_READ = 0x80000000; // Read access
-            public const uint GENERIC_WRITE = 0x40000000; // Write access
+            public const uint DIGCF_DEVICEINTERFACE = 0x10; // devices that support device interfaces
+            public const uint DIGCF_PRESENT = 0x02; // devices that are currently present in a system
             public const uint FILE_SHARE_READ = 0x00000001; // Enables subsequent open operations on a file or device to request read access.
             public const uint FILE_SHARE_WRITE = 0x00000002; // Enables subsequent open operations on a file or device to request write access.
+            public const uint GENERIC_READ = 0x80000000; // Read access
+            public const uint GENERIC_WRITE = 0x40000000; // Write access
             public const uint OPEN_EXISTING = 3; // Opens a file or device, only if it exists.
 
             #endregion
