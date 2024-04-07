@@ -801,7 +801,7 @@ namespace USBrelayDeviceNET
                             pDeviceInfoSet,
                             ref devInterfaceData,
                             ref devInterfaceDetailData,
-                            NativeMethods.DEFAULT_SIZE,
+                            NativeMethods.DETAIL_DATA_SIZE,
                             0,
                             IntPtr.Zero);
 
@@ -1082,7 +1082,7 @@ namespace USBrelayDeviceNET
 
             public const uint DIGCF_PRESENT = 0x02; // devices that are currently present in a system
             public const uint DIGCF_DEVICEINTERFACE = 0x10; // devices that support device interfaces
-            public const uint DEFAULT_SIZE = 0x0FFF;
+            public const uint DETAIL_DATA_SIZE = 0x0FFF; // sets default size of device interface detail data
             public const uint GENERIC_READ = 0x80000000; // Read access
             public const uint GENERIC_WRITE = 0x40000000; // Write access
             public const uint FILE_SHARE_READ = 0x00000001; // Enables subsequent open operations on a file or device to request read access.
@@ -1109,7 +1109,7 @@ namespace USBrelayDeviceNET
             {
                 public uint cbSize;
 
-                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int) DEFAULT_SIZE)]
+                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int) DETAIL_DATA_SIZE)]
                 public readonly string DevicePath;
             }
 
