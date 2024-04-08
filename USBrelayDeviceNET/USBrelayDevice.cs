@@ -102,6 +102,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace USBrelayDeviceNET
 {
@@ -399,7 +400,6 @@ namespace USBrelayDeviceNET
 
             // loop variable declarations
             var index = 0; // device information list indexer
-            var pProductName = new IntPtr(); // pointer to device product name
             var pHandle = new IntPtr(); // pointer to device handle
 
             foreach (var devicePath in devicePaths)
@@ -409,26 +409,23 @@ namespace USBrelayDeviceNET
                     //open USB relay device
                     pHandle = HID_OpenDdevice(devicePath, true);
 
-                    //if failed to get device handle, skip device
+                    //if failed to get device handle, go to next device
                     if(pHandle == IntPtr.Zero) continue;
-
+                    
                     // get product name
                     var product_name = "";
-                    pProductName = Marshal.AllocCoTaskMem(sizeof(char) * 128);
-                    var result = NativeMethods.HidD_GetProductString(
-                        pHandle,
-                        pProductName,
-                        sizeof(char) * 128);
+                    var buffer = new byte[sizeof(char) * 126];
+                    var result = NativeMethods.HidD_GetProductString(pHandle, buffer, buffer.Length);
 
-                    if (result) product_name = Marshal.PtrToStringAuto(pProductName);
+                    if (result) product_name = Encoding.Unicode.GetString(buffer).TrimEnd((char)0);
 
-                    // if fails skip device
+                    // if failed to get Product Name go to next device
                     if (string.IsNullOrEmpty(product_name) || !product_name.ToUpper().Contains("USBRELAY")) continue;
 
                     // Get relay count of device (last char of Product Name string)
                     var rly_count = Convert.ToInt32(product_name.Remove(0, 8));
 
-                    // if fails skip device
+                    // if failed to get relay count, go to next device
                     if (rly_count <= 0 | rly_count > 8) continue;
 
                     // get device ID string, if fails ID will return as default value of "error"
@@ -478,17 +475,11 @@ namespace USBrelayDeviceNET
                 }
                 finally
                 {
-                    // free resources and reset pointers for next iteration
+                    // close device handle and reset pointer for next iteration
                     if (pHandle != IntPtr.Zero)
                     {
                         NativeMethods.CloseHandle(pHandle);
                         pHandle = IntPtr.Zero;
-                    }
-
-                    if (pProductName != IntPtr.Zero)
-                    {
-                        Marshal.FreeCoTaskMem(pProductName);
-                        pProductName = IntPtr.Zero;
                     }
                 }
             }
@@ -898,7 +889,7 @@ namespace USBrelayDeviceNET
         /// <returns>true if success, false if failed</returns>
         private bool HID_Feature(int command_type, ref byte[] report_buffer)
         {
-            if (pDevice == IntPtr.Zero | report_buffer.Length != 9) return false;
+            if (pDevice == IntPtr.Zero | report_buffer.Length == 0) return false;
 
             while (wait_for_completion) { }
 
@@ -955,9 +946,11 @@ namespace USBrelayDeviceNET
             }
 
             // check that the relay number is valid
-            if (relay_num > relay_count)
+            if (relay_num > relay_count | relay_num < 0)
             {
-                Error_Handler("Relay number exceeds relay count of device.",
+                Error_Handler("Relay number is incorrect.\n" +
+                              "Must be equal to or greater than zero and\n" +
+                              "less than or equal to the relay count.",
                     "SetRelayState()", null, 0);
                 return false;
             }
@@ -1253,15 +1246,15 @@ namespace USBrelayDeviceNET
             /// Routine returns the embedded string of a top-level collection that identifies the manufacturer's product.
             /// </summary>
             /// <param name="HidDeviceObject">open handle to a top-level collection.</param>
-            /// <param name="Buffer">Pointer to a caller-allocated buffer that the routine uses to return the product string.</param>
+            /// <param name="Buffer">caller-allocated buffer that the routine uses to return the product string.</param>
             /// <param name="BufferLength">Specifies the length, in bytes, of a caller-allocated buffer.</param>
             /// <returns>returns TRUE if succeeds; otherwise, it returns FALSE.</returns>
             /// ref: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_getproductstring
             [DllImport("hid.dll", SetLastError = true)]
             public static extern bool HidD_GetProductString(
                 IntPtr HidDeviceObject, 
-                IntPtr Buffer, 
-                uint BufferLength);
+                byte[] Buffer, 
+                int BufferLength);
 
             /// <summary>
             /// Routine returns a feature report from a specified top-level collection.
