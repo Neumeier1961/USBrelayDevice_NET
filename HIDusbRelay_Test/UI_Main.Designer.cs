@@ -657,7 +657,7 @@
             this.MaximizeBox = false;
             this.Name = "UI_Main";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "NOYITO USB Relay Test Program";
+            this.Text = "USB Relay Device Test Program";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.menuStrip1.ResumeLayout(false);
