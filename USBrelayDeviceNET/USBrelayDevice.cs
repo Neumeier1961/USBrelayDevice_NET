@@ -119,7 +119,7 @@ namespace USBrelayDeviceNET
     /// Native Libraries used: hid.dll, setupapi.dll and kernel32.dll
     /// .NET Framework: 4.5, Build platform: x86, x64 or AnyCPU
     /// Libarary has been tested in applications compiled for 32 bit and 64 bit CPUs in Windows 7/10/11
-    /// Built using Visual Studio 2014 Pro and using Visual Studio 2022 Pro
+    /// Built using Visual Studio 2013 Pro and using Visual Studio 2022 Pro
     public sealed class USBrelayDevice: IDisposable
     {
         #region class constructer/destructor
@@ -294,7 +294,7 @@ namespace USBrelayDeviceNET
         /// <summary> Contains USB Relay device information, this structure is returned in a list using the GetDevices() method</summary>
         public struct DeviceInfo
         {
-            /// <summary> Device serial number</summary>
+            /// <summary> Device ID/serial number</summary>
             public string device_ID;
 
             /// <summary> System path to device</summary>
@@ -310,13 +310,13 @@ namespace USBrelayDeviceNET
             public int index;
         }
 
-        /// <summary> Tue when class has been disposed</summary>
+        /// <summary> Tue when class has been disposed.</summary>
         public bool IsDisposed { get; private set; }
 
-        /// <summary> True when USB Relay devices are found and available for connection</summary>
+        /// <summary> True when USB Relay devices are found and available for connection.</summary>
         public bool DevicesFound { get; private set; }
 
-        /// <summary> True when a USB Relay device is connected</summary>
+        /// <summary> True when a USB Relay device is connected and opened.</summary>
         public bool DeviceOpen { get; private set; }
 
         /// <summary> Array of current relay states, true = ON and false = OFF</summary>
@@ -417,7 +417,7 @@ namespace USBrelayDeviceNET
                     var buffer = new byte[sizeof(char) * 126];
                     var result = NativeMethods.HidD_GetProductString(pHandle, buffer, buffer.Length);
 
-                    if (result) product_name = Encoding.Unicode.GetString(buffer).TrimEnd((char)0);
+                    if (result) product_name = Encoding.Unicode.GetString(buffer).TrimEnd((Char)0);
 
                     // if failed to get Product Name go to next device
                     if (string.IsNullOrEmpty(product_name) || !product_name.ToUpper().Contains("USBRELAY")) continue;
@@ -584,7 +584,7 @@ namespace USBrelayDeviceNET
         }
 
         /// <summary>
-        /// Closes connected USB Relay device
+        /// Closes opened USB Relay device
         /// </summary>
         public void CloseDevice()
         {
@@ -624,7 +624,7 @@ namespace USBrelayDeviceNET
         /// <summary>
         /// Turns off all relays
         /// </summary>
-        /// <returns></returns>
+        /// <returns>true if success, false if failed</returns>
         public bool ALLRelaysOFF()
         {
             return SetRelayState(OFF, 0);
