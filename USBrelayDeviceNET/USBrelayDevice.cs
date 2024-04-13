@@ -131,7 +131,6 @@ namespace USBrelayDeviceNET
         /// </summary>
         public USBrelayDevice()
         {
-            devHandle = new Safe_Handle();
             IsDisposed = false;
             RelayStatus = new bool[8];
             GetUSBrelayDevices(true);
@@ -148,7 +147,6 @@ namespace USBrelayDeviceNET
         /// </remarks>
         public USBrelayDevice(string device_ID)
         {
-            devHandle = new Safe_Handle();
             IsDisposed = false;
             RelayStatus = new bool[8];
             GetUSBrelayDevices(true);
@@ -168,7 +166,6 @@ namespace USBrelayDeviceNET
         /// </remarks>
         public USBrelayDevice(bool open_First)
         {
-            devHandle = new Safe_Handle();
             IsDisposed = false;
             RelayStatus = new bool[8];
             GetUSBrelayDevices(true);
@@ -204,7 +201,6 @@ namespace USBrelayDeviceNET
             if (IsDisposed) return;
             if (disposing)
             {
-                if (DeviceOpen) CloseDevice();
                 devHandle.Dispose();
                 devHandle = null;
                 localDeviceList.Clear();
@@ -331,12 +327,9 @@ namespace USBrelayDeviceNET
         #region Private Members
 
         /// <summary>Wrapper class for operating system handles, used for device handles.</summary>
-        internal sealed class Safe_Handle : SafeHandleZeroOrMinusOneIsInvalid
+        internal sealed class SafeHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
-            public Safe_Handle()
-                : base(true)
-            {
-            }
+            public SafeHandle() : base(true) {}
 
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             protected override bool ReleaseHandle()
@@ -360,7 +353,7 @@ namespace USBrelayDeviceNET
         private int relay_count;
 
         /// <summary> Handle of current open device</summary>
-        private Safe_Handle devHandle;
+        private SafeHandle devHandle = new SafeHandle();
 
         /// <summary> set HID feature flag</summary>
         private const int SET = - 0x00;
@@ -419,7 +412,7 @@ namespace USBrelayDeviceNET
 
             // loop variable declarations
             var index = 0; // device information list indexer
-            var _devHandle = new Safe_Handle(); // device handle
+            var _devHandle = new SafeHandle(); // device handle
 
             // loop through devices and get device information
             foreach (var devicePath in devicePaths)
@@ -430,7 +423,7 @@ namespace USBrelayDeviceNET
                     _devHandle = HID_OpenDdevice(devicePath, true);
 
                     //if failed to get device handle, go to next device
-                    if(_devHandle == null || _devHandle.IsInvalid) continue;
+                    if(_devHandle.IsInvalid) continue;
                     
                     // get product name
                     var product_name = "";
@@ -496,8 +489,8 @@ namespace USBrelayDeviceNET
                 finally
                 {
                     // close device handle and reset handle for next iteration
-                    if (_devHandle != null && !_devHandle.IsInvalid) _devHandle.Close();
-                    _devHandle = new Safe_Handle();
+                    if (!_devHandle.IsInvalid & !_devHandle.IsClosed) _devHandle.Close();
+                    _devHandle = new SafeHandle();
                 }
             }
 
@@ -539,7 +532,7 @@ namespace USBrelayDeviceNET
             devHandle = HID_OpenDdevice(localDeviceList[device_index].device_path, false);
 
             //set device open flag
-            DeviceOpen = !devHandle.IsInvalid;
+            DeviceOpen = !devHandle.IsInvalid & !devHandle.IsClosed;
 
             //set device relay count
             if (DeviceOpen)
@@ -591,7 +584,7 @@ namespace USBrelayDeviceNET
             devHandle = HID_OpenDdevice(localDeviceList[index].device_path, false);
 
             //set device open flag
-            DeviceOpen = !devHandle.IsInvalid;
+            DeviceOpen = !devHandle.IsInvalid & !devHandle.IsClosed;
 
             //set device relay count
             if (DeviceOpen)
@@ -608,7 +601,7 @@ namespace USBrelayDeviceNET
         /// </summary>
         public void CloseDevice()
         {
-            if (devHandle != null && !devHandle.IsInvalid)
+            if (!devHandle.IsClosed & !devHandle.IsInvalid)
             {
                 try
                 {
@@ -618,12 +611,12 @@ namespace USBrelayDeviceNET
                 {
                     Error_Handler("Exception", "CloseDevice()", ex, 0);
                 }
-
-                wait_for_completion = false;
             }
 
+            devHandle = new SafeHandle();
             RelayStatus = new bool[8];
             DeviceOpen = false;
+            wait_for_completion = false;
         }
 
         /// <summary>
@@ -731,10 +724,9 @@ namespace USBrelayDeviceNET
             // initialize device path list
             var DevicePathList = new List<string>(); //return List
 
-            // pointer declarations
+            // pointer declaration
             var pDeviceInfoSet = new IntPtr(); //pointer to device information set
-            var _devHandle = new Safe_Handle(); // device handle
-
+            
             // structure declarations
             var devInterfaceDetailData = new NativeMethods.SP_DEVICE_INTERFACE_DETAIL_DATA(); // device detail data, contains data path
             var devInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api calls
@@ -746,8 +738,9 @@ namespace USBrelayDeviceNET
             devInterfaceData.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
             deviceAttributes.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
             
-            // loop variable declaration
+            // loop variable declarations
             uint memberIndex = 0; //device enumeration interface indexer
+            var _devHandle = new SafeHandle(); // device handle
 
             try
             {
@@ -817,7 +810,7 @@ namespace USBrelayDeviceNET
                         // open device, returns handle to opened device
                         _devHandle = HID_OpenDdevice(devInterfaceDetailData.DevicePath, true);
 
-                        if (_devHandle == null || _devHandle.IsInvalid) continue;  //if fails, go to next device
+                        if (_devHandle.IsInvalid) continue;  //if fails, go to next device
 
                         // If PID and VID are both set to 0, skip VID/PID validation and add device path to list
                         if (!(PID == 0x00 & VID == 0x00))
@@ -840,9 +833,9 @@ namespace USBrelayDeviceNET
                     }
                     finally
                     {
-                        // free resources and reset handle for next iteration
-                        if (_devHandle != null && !_devHandle.IsInvalid) _devHandle.Close();
-                        _devHandle = new Safe_Handle();
+                        // close device handle and reset handle for next iteration
+                        if (!_devHandle.IsInvalid & !_devHandle.IsClosed) _devHandle.Close();
+                        _devHandle = new SafeHandle();
                     }
                 } // while loop
             }
@@ -866,11 +859,11 @@ namespace USBrelayDeviceNET
         /// <param name="devicePath">path to HID device</param>
         /// <param name="suppressError">true to suppress exception reporting</param>
         /// <returns>on success returns handle to device, if fails returns 0</returns>
-        private Safe_Handle HID_OpenDdevice(string devicePath, bool suppressError)
+        private SafeHandle HID_OpenDdevice(string devicePath, bool suppressError)
         {
             try
             {
-                var pHandle = NativeMethods.CreateFile(
+                var handle = NativeMethods.CreateFile(
                     devicePath,
                     NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE,
                     NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_WRITE,
@@ -879,7 +872,7 @@ namespace USBrelayDeviceNET
                     0,
                     IntPtr.Zero);
 
-                if (!pHandle.IsInvalid) return pHandle;
+                if (!handle.IsInvalid) return handle;
                 if (!suppressError)
                 {
                     var ec = NativeMethods.GetLastError();
@@ -891,7 +884,7 @@ namespace USBrelayDeviceNET
                 DeviceOpen = false;
                 if (!suppressError) Error_Handler("Exception", "OpenHIDdevice()", ex, 0);
             }
-            return new Safe_Handle();
+            return new SafeHandle();
         }
 
         /// <summary>
@@ -1209,7 +1202,7 @@ namespace USBrelayDeviceNET
             /// <returns>If the function succeeds, the returns an open handle to the specified file, device.</returns>
             /// ref:  https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
             [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-            public static extern Safe_Handle CreateFile(
+            public static extern SafeHandle CreateFile(
                 string lpFileName,
                 uint dwDesiredAccess,
                 uint dwShareMode,
@@ -1252,7 +1245,7 @@ namespace USBrelayDeviceNET
             /// ref: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_getattributes
             [DllImport("hid.dll", SetLastError = true)]
             public static extern bool HidD_GetAttributes(
-                Safe_Handle HidDeviceObject, 
+                SafeHandle HidDeviceObject, 
                 ref HIDD_ATTRIBUTES Attributes);
 
             /// <summary>
@@ -1265,7 +1258,7 @@ namespace USBrelayDeviceNET
             /// ref: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_getproductstring
             [DllImport("hid.dll", SetLastError = true)]
             public static extern bool HidD_GetProductString(
-                Safe_Handle HidDeviceObject, 
+                SafeHandle HidDeviceObject, 
                 byte[] Buffer, 
                 int BufferLength);
 
@@ -1279,7 +1272,7 @@ namespace USBrelayDeviceNET
             /// ref: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_getfeature
             [DllImport("hid.dll", SetLastError = true)]
             public static extern bool HidD_GetFeature(
-                Safe_Handle HidDeviceObject, 
+                SafeHandle HidDeviceObject, 
                 byte[] ReportBuffer, 
                 int ReportBufferLength);
 
@@ -1293,7 +1286,7 @@ namespace USBrelayDeviceNET
             /// ref: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_setfeature
             [DllImport("hid.dll", SetLastError = true)]
             public static extern bool HidD_SetFeature(
-                Safe_Handle HidDeviceObject, 
+                SafeHandle HidDeviceObject, 
                 byte[] ReportBuffer, 
                 int ReportBufferLength);
 
