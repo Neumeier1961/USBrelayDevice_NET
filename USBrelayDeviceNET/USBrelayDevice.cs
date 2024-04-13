@@ -488,8 +488,8 @@ namespace USBrelayDeviceNET
                 }
                 finally
                 {
-                    // close device handle and reset handle for next iteration
-                    if (!_devHandle.IsInvalid & !_devHandle.IsClosed) _devHandle.Close();
+                    // close and reset  device handle for next iteration
+                    _devHandle.Close();
                     _devHandle = new SafeHandle();
                 }
             }
@@ -601,16 +601,13 @@ namespace USBrelayDeviceNET
         /// </summary>
         public void CloseDevice()
         {
-            if (!devHandle.IsClosed & !devHandle.IsInvalid)
+            try
             {
-                try
-                {
-                    devHandle.Close();
-                }
-                catch (Exception ex)
-                {
-                    Error_Handler("Exception", "CloseDevice()", ex, 0);
-                }
+                devHandle.Close();
+            }
+            catch (Exception ex)
+            {
+                Error_Handler("Exception", "CloseDevice()", ex, 0);
             }
 
             devHandle = new SafeHandle();
@@ -833,8 +830,8 @@ namespace USBrelayDeviceNET
                     }
                     finally
                     {
-                        // close device handle and reset handle for next iteration
-                        if (!_devHandle.IsInvalid & !_devHandle.IsClosed) _devHandle.Close();
+                        // close and reset  device handle for next iteration
+                        _devHandle.Close();
                         _devHandle = new SafeHandle();
                     }
                 } // while loop
@@ -846,7 +843,7 @@ namespace USBrelayDeviceNET
             finally
             {
                 //free resources
-                if (pDeviceInfoSet != IntPtr.Zero) NativeMethods.SetupDiDestroyDeviceInfoList(pDeviceInfoSet);
+                NativeMethods.SetupDiDestroyDeviceInfoList(pDeviceInfoSet);
                 _devHandle.Dispose();
             }
 
@@ -1077,7 +1074,7 @@ namespace USBrelayDeviceNET
         /// </summary>
         internal static class NativeMethods
         {
-            #region Constants and Flags
+            #region Flags
 
             public const uint DETAIL_DATA_SIZE = 0x0FFF; // sets default size of device interface detail data
             public const uint DIGCF_DEVICEINTERFACE = 0x10; // devices that support device interfaces
