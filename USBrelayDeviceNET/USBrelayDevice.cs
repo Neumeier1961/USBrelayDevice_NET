@@ -327,7 +327,7 @@ namespace USBrelayDeviceNET
         #region Private Members
 
         /// <summary>Wrapper class for operating system handles.</summary>
-        internal class SafeHandle : SafeHandleZeroOrMinusOneIsInvalid
+        internal sealed class SafeHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
             public SafeHandle() : base(true)
             {
@@ -346,7 +346,7 @@ namespace USBrelayDeviceNET
             /// Releases all resources used by the SafeHandle class. Used for non Devie handles.
             /// </summary>
             /// <param name="IsDeviceHandle">false if handle does not belong to device.</param>
-            public new virtual void Dispose(bool IsDeviceHandle)
+            public new void Dispose(bool IsDeviceHandle)
             {
                 _IsDeviceHandle = IsDeviceHandle;
                 Dispose();
