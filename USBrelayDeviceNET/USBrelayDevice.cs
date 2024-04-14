@@ -333,12 +333,19 @@ namespace USBrelayDeviceNET
             {
             }
 
-            public bool IsDeviceHandle = true; // handle type flag
+            private bool _IsDeviceHandle = true; // handle type flag
 
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             protected override bool ReleaseHandle()
             {
-                return IsDeviceHandle ? NativeMethods.CloseHandle(handle) : NativeMethods.SetupDiDestroyDeviceInfoList(handle);
+                return _IsDeviceHandle ? 
+                    NativeMethods.CloseHandle(handle) : NativeMethods.SetupDiDestroyDeviceInfoList(handle);
+            }
+
+            public new void Dispose(bool IsDeviceHandle)
+            {
+                _IsDeviceHandle = IsDeviceHandle;
+                Dispose();
             }
         }
 
@@ -845,8 +852,7 @@ namespace USBrelayDeviceNET
             finally
             {
                 //free resources
-                deviceInfoSet.IsDeviceHandle = false; // set not Device flag
-                deviceInfoSet.Dispose();
+                deviceInfoSet.Dispose(false);
                 _devHandle.Dispose();
             }
 
