@@ -327,29 +327,21 @@ namespace USBrelayDeviceNET
         #region Private Members
 
         /// <summary>Wrapper class for operating system handles.</summary>
-        internal sealed class SafeHandle : SafeHandleZeroOrMinusOneIsInvalid
+        internal class SafeHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
+            /// <summary> Represents wrapper for operating system handles.</summary>
             public SafeHandle() : base(true)
             {
             }
 
-            private bool _IsDeviceHandle = true; // handle type flag
+            /// <summary> Device type flag, true if device/file handle. Default value is true.</summary>
+            public bool IsDeviceHandle = true;
 
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             protected override bool ReleaseHandle()
             {
-                return _IsDeviceHandle ? 
+                return IsDeviceHandle ? 
                     NativeMethods.CloseHandle(handle) : NativeMethods.SetupDiDestroyDeviceInfoList(handle);
-            }
-
-            /// <summary>
-            /// Releases all resources used by the SafeHandle class. Used for non Devie handles.
-            /// </summary>
-            /// <param name="IsDeviceHandle">false if handle does not belong to device.</param>
-            public new void Dispose(bool IsDeviceHandle)
-            {
-                _IsDeviceHandle = IsDeviceHandle;
-                Dispose();
             }
         }
 
@@ -361,7 +353,7 @@ namespace USBrelayDeviceNET
             public int relay_Count;
         }
 
-        /// <summary>Device Information list of all USB Relay Devices attached to system</summary>
+        /// <summary> Device Information list of all USB Relay Devices attached to system</summary>
         private List<LocalDeviceInfo> localDeviceList;
 
         /// <summary> Relay count of current open device</summary>
@@ -747,8 +739,10 @@ namespace USBrelayDeviceNET
             devInterfaceData.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
             deviceAttributes.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
 
+            // device info set handle declarations
+            var deviceInfoSet = new SafeHandle();
+
             // loop variable declarations
-            var deviceInfoSet = new SafeHandle(); // handle to device information set
             uint memberIndex = 0; // device enumeration interface indexer
             var _devHandle = new SafeHandle(); // device handle
 
@@ -767,6 +761,9 @@ namespace USBrelayDeviceNET
                     null,
                     IntPtr.Zero,
                     NativeMethods.DIGCF_DEVICEINTERFACE | NativeMethods.DIGCF_PRESENT);
+
+                // set handle type flag for device info set
+                deviceInfoSet.IsDeviceHandle = false; 
 
                 if (deviceInfoSet.IsInvalid) //if fails, end device search
                 {
@@ -856,7 +853,7 @@ namespace USBrelayDeviceNET
             finally
             {
                 //free resources
-                deviceInfoSet.Dispose(false);
+                deviceInfoSet.Dispose();
                 _devHandle.Dispose();
             }
 
