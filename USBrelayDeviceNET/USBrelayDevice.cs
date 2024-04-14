@@ -326,15 +326,19 @@ namespace USBrelayDeviceNET
 
         #region Private Members
 
-        /// <summary>Wrapper class for operating system handles, used for device handles.</summary>
+        /// <summary>Wrapper class for operating system handles.</summary>
         internal sealed class SafeHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
-            public SafeHandle() : base(true) {}
+            public SafeHandle() : base(true)
+            {
+            }
+
+            public bool IsDeviceHandle = true; // handle type flag
 
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             protected override bool ReleaseHandle()
             {
-                return NativeMethods.CloseHandle(handle);
+                return IsDeviceHandle ? NativeMethods.CloseHandle(handle) : NativeMethods.SetupDiDestroyDeviceInfoList(handle);
             }
         }
 
@@ -488,8 +492,8 @@ namespace USBrelayDeviceNET
                 }
                 finally
                 {
-                    // close and reset  device handle for next iteration
-                    _devHandle.Close();
+                    // Free and reset device handle for next iteration
+                    _devHandle.Dispose();
                     _devHandle = new SafeHandle();
                 }
             }
@@ -721,9 +725,6 @@ namespace USBrelayDeviceNET
             // initialize device path list
             var DevicePathList = new List<string>(); //return List
 
-            // pointer declaration
-            var pDeviceInfoSet = new IntPtr(); //pointer to device information set
-            
             // structure declarations
             var devInterfaceDetailData = new NativeMethods.SP_DEVICE_INTERFACE_DETAIL_DATA(); // device detail data, contains data path
             var devInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api calls
@@ -734,9 +735,10 @@ namespace USBrelayDeviceNET
                 IntPtr.Size + Marshal.SystemDefaultCharSize : IntPtr.Size);
             devInterfaceData.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
             deviceAttributes.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
-            
+
             // loop variable declarations
-            uint memberIndex = 0; //device enumeration interface indexer
+            var deviceInfoSet = new SafeHandle(); // handle to device information set
+            uint memberIndex = 0; // device enumeration interface indexer
             var _devHandle = new SafeHandle(); // device handle
 
             try
@@ -748,14 +750,14 @@ namespace USBrelayDeviceNET
                 Guid HIDguid;
                 NativeMethods.HidD_GetHidGuid(out HIDguid);
 
-                // Get a pointer to a device information set of all HID devices  
-                pDeviceInfoSet = NativeMethods.SetupDiGetClassDevs(
+                // Get a handle to a device information set of all HID devices  
+                deviceInfoSet = NativeMethods.SetupDiGetClassDevs(
                     ref HIDguid,
                     null,
                     IntPtr.Zero,
                     NativeMethods.DIGCF_DEVICEINTERFACE | NativeMethods.DIGCF_PRESENT);
 
-                if (pDeviceInfoSet == IntPtr.Zero) //if fails, end device search
+                if (deviceInfoSet.IsInvalid) //if fails, end device search
                 {
                     var ec = NativeMethods.GetLastError();
                     Error_Handler("Error getting pointer to device information set.",
@@ -770,7 +772,7 @@ namespace USBrelayDeviceNET
                     {
                         // get device interface data from the device information set at member index
                         var result = NativeMethods.SetupDiEnumDeviceInterfaces(
-                            pDeviceInfoSet,
+                            deviceInfoSet,
                             IntPtr.Zero,
                             ref HIDguid,
                             memberIndex,
@@ -794,7 +796,7 @@ namespace USBrelayDeviceNET
 
                         // get path to device (found in SP_DEVICE_INTERFACE_DETAIL_DATA structure)
                         result = NativeMethods.SetupDiGetDeviceInterfaceDetail(
-                            pDeviceInfoSet,
+                            deviceInfoSet,
                             ref devInterfaceData,
                             ref devInterfaceDetailData,
                             NativeMethods.DETAIL_DATA_SIZE,
@@ -830,8 +832,8 @@ namespace USBrelayDeviceNET
                     }
                     finally
                     {
-                        // close and reset  device handle for next iteration
-                        _devHandle.Close();
+                        // Free and reset device handle for next iteration
+                        _devHandle.Dispose();
                         _devHandle = new SafeHandle();
                     }
                 } // while loop
@@ -843,7 +845,8 @@ namespace USBrelayDeviceNET
             finally
             {
                 //free resources
-                NativeMethods.SetupDiDestroyDeviceInfoList(pDeviceInfoSet);
+                deviceInfoSet.IsDeviceHandle = false; // set not Device flag
+                deviceInfoSet.Dispose();
                 _devHandle.Dispose();
             }
 
@@ -1133,7 +1136,7 @@ namespace USBrelayDeviceNET
             /// <returns>returns a handle to a device information set</returns>
             /// ref: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdigetclassdevsw
             [DllImport("setupapi.dll", SetLastError = true)]
-            public static extern IntPtr SetupDiGetClassDevs(
+            public static extern SafeHandle SetupDiGetClassDevs(
                 ref Guid classGuid,
                 [MarshalAs(UnmanagedType.LPStr)] string enumerator,
                 IntPtr hwndParent,
@@ -1151,7 +1154,7 @@ namespace USBrelayDeviceNET
             /// ref: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdienumdeviceinterfaces
             [DllImport("setupapi.dll", SetLastError = true)]
             public static extern bool SetupDiEnumDeviceInterfaces(
-                IntPtr DeviceInfoSet,
+                SafeHandle DeviceInfoSet,
                 IntPtr DeviceInfoData, 
                 ref Guid InterfaceClassGuid,
                 uint MemberIndex,
@@ -1170,7 +1173,7 @@ namespace USBrelayDeviceNET
             /// ref: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdigetdeviceinterfacedetaila
             [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
             public static extern bool SetupDiGetDeviceInterfaceDetail(
-                IntPtr DeviceInfoSet,
+                SafeHandle DeviceInfoSet,
                 ref SP_DEVICE_INTERFACE_DATA DeviceInterfaceData,
                 ref SP_DEVICE_INTERFACE_DETAIL_DATA DeviceInterfaceDetailData,
                 uint DeviceInterfaceDetailDataSize,
