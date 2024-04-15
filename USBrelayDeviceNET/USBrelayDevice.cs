@@ -104,6 +104,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Text;
 
 namespace USBrelayDeviceNET
@@ -201,7 +202,7 @@ namespace USBrelayDeviceNET
             if (IsDisposed) return;
             if (disposing)
             {
-                devHandle.Dispose();
+                devHandle.Dispose(true);
                 devHandle = null;
                 localDeviceList.Clear();
             }
@@ -327,6 +328,7 @@ namespace USBrelayDeviceNET
         #region Private Members
 
         /// <summary>Wrapper class for operating system handles.</summary>
+        /// ref: https://learn.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.safehandle?view=net-8.0
         internal class SafeHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
             /// <summary> Represents wrapper for operating system handles.</summary>
@@ -334,14 +336,22 @@ namespace USBrelayDeviceNET
             {
             }
 
-            /// <summary> Device type flag, true if device/file handle. Default value is true.</summary>
-            public bool IsDeviceHandle = true;
+            // Device type flag, true if handle belongs to device. Determines how to release the handle.
+            private bool _IsDeviceHandle = true;
 
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             protected override bool ReleaseHandle()
             {
-                return IsDeviceHandle ? 
+                return _IsDeviceHandle ? 
                     NativeMethods.CloseHandle(handle) : NativeMethods.SetupDiDestroyDeviceInfoList(handle);
+            }
+
+            /// <summary> Releases all resources used by SafeHandle class.</summary>
+            /// <param name="IsDeviceHandle">Device type flag, true if handle belongs to device.</param>
+            public new void Dispose(bool IsDeviceHandle)
+            {
+                _IsDeviceHandle = IsDeviceHandle;
+                Dispose();
             }
         }
 
@@ -496,13 +506,13 @@ namespace USBrelayDeviceNET
                 finally
                 {
                     // Free and reset device handle for next iteration
-                    _devHandle.Dispose();
+                    _devHandle.Dispose(true);
                     _devHandle = new SafeHandle();
                 }
             }
 
             // destroy device handle
-            _devHandle.Dispose();
+            _devHandle.Dispose(true);
 
             // Set flags and return device list
             wait_for_completion = false;
@@ -731,19 +741,19 @@ namespace USBrelayDeviceNET
             // structure declarations
             var devInterfaceDetailData = new NativeMethods.SP_DEVICE_INTERFACE_DETAIL_DATA(); // device detail data, contains device path
             var devInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api enumeration calls
-            var deviceAttributes = new NativeMethods.HIDD_ATTRIBUTES(); //HID device attributes, contain Vid and Pid values for device
+            var deviceAttributes = new NativeMethods.HIDD_ATTRIBUTES(); //HID device attributes, contains Vid and Pid values of device
 
             // Set the size parameter for the structures
-            devInterfaceDetailData.cbSize = (uint)(IntPtr.Size == sizeof(int)? 
-                IntPtr.Size + Marshal.SystemDefaultCharSize : IntPtr.Size);
-            devInterfaceData.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
-            deviceAttributes.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
+            devInterfaceDetailData.cbSize = (IntPtr.Size == sizeof(int)?  // for 32 bit and 64 bit compatability
+                IntPtr.Size + Marshal.SystemDefaultCharSize : IntPtr.Size); // size of the fixed part of the data structure
+            devInterfaceData.Size = Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
+            deviceAttributes.Size = Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
 
             // device info set handle declaration
             var deviceInfoSet = new SafeHandle();
 
             // loop variable declarations
-            uint memberIndex = 0; // device enumeration interface indexer
+            var memberIndex = 0; // device enumeration interface indexer
             var _devHandle = new SafeHandle(); // device handle
 
             try
@@ -762,10 +772,7 @@ namespace USBrelayDeviceNET
                     IntPtr.Zero,
                     NativeMethods.DIGCF_DEVICEINTERFACE | NativeMethods.DIGCF_PRESENT);
 
-                // set handle type flag for device info set
-                deviceInfoSet.IsDeviceHandle = false; 
-
-                if (deviceInfoSet.IsInvalid) //if fails, end device search
+                if (deviceInfoSet.IsInvalid) //if handle is invalid, end device search
                 {
                     var ec = NativeMethods.GetLastError();
                     Error_Handler("Error getting pointer to device information set.",
@@ -799,12 +806,9 @@ namespace USBrelayDeviceNET
                                 
                             break;
                         }
-
-                        // advance device enumeration index for next iteration
-                        memberIndex++;
-
+                     
                         // get path to device (found in SP_DEVICE_INTERFACE_DETAIL_DATA structure)
-                        // only single call to function required by using structures and passing fixed value for size
+                        // only single call to function is required when using structures and passing fixed value for size
                         result = NativeMethods.SetupDiGetDeviceInterfaceDetail(
                             deviceInfoSet,
                             ref devInterfaceData,
@@ -819,7 +823,7 @@ namespace USBrelayDeviceNET
                         // open device, returns handle to opened device
                         _devHandle = HID_OpenDdevice(devInterfaceDetailData.DevicePath, true);
 
-                        if (_devHandle.IsInvalid) continue;  //if fails, go to next device
+                        if (_devHandle.IsInvalid) continue;  //if handle is invalid, go to next device
 
                         // If PID and VID are both set to 0, skip VID/PID validation and add device path to list
                         if (!(PID == 0x00 & VID == 0x00))
@@ -843,8 +847,11 @@ namespace USBrelayDeviceNET
                     finally
                     {
                         // Free and reset device handle for next iteration
-                        _devHandle.Dispose();
+                        _devHandle.Dispose(true);
                         _devHandle = new SafeHandle();
+
+                        // advance device enumeration index for next iteration
+                        memberIndex++;
                     }
                 } // while loop
             }
@@ -855,8 +862,8 @@ namespace USBrelayDeviceNET
             finally
             {
                 //free resources
-                deviceInfoSet.Dispose();
-                _devHandle.Dispose();
+                deviceInfoSet.Dispose(false);
+                _devHandle.Dispose(true);
             }
 
             return DevicePathList.Count > 0 ? DevicePathList.ToArray() : new string[0];
@@ -1081,21 +1088,20 @@ namespace USBrelayDeviceNET
 
         #region Native API call Definitions
 
-        /// <summary>
-        /// Class provides function prototypes and strcture definitions for native API calls
-        /// </summary>
+        /// <summary>Class provides function prototypes and strcture definitions for native API calls</summary>
+        [SuppressUnmanagedCodeSecurity]
         internal static class NativeMethods
         {
             #region Flags
 
-            public const uint DETAIL_DATA_SIZE = 0x0FFF; // sets default size of device interface detail data
-            public const uint DIGCF_DEVICEINTERFACE = 0x10; // devices that support device interfaces
-            public const uint DIGCF_PRESENT = 0x02; // devices that are currently present in a system
-            public const uint FILE_SHARE_READ = 0x00000001; // Enables subsequent open operations on a file or device to request read access.
-            public const uint FILE_SHARE_WRITE = 0x00000002; // Enables subsequent open operations on a file or device to request write access.
-            public const uint GENERIC_READ = 0x80000000; // Read access
+            public const int DETAIL_DATA_SIZE = 0x0FFF; // sets default size of device interface detail data
+            public const int DIGCF_DEVICEINTERFACE = 0x10; // devices that support device interfaces
+            public const int DIGCF_PRESENT = 0x02; // devices that are currently present in a system
+            public const int FILE_SHARE_READ = 0x00000001; // Enables subsequent open operations on a file or device to request read access.
+            public const int FILE_SHARE_WRITE = 0x00000002; // Enables subsequent open operations on a file or device to request write access.
+            public const uint GENERIC_READ =  0x80000000; // Read access
             public const uint GENERIC_WRITE = 0x40000000; // Write access
-            public const uint OPEN_EXISTING = 3; // Opens a file or device, only if it exists.
+            public const int OPEN_EXISTING = 3; // Opens a file or device, only if it exists.
 
             #endregion
 
@@ -1105,7 +1111,7 @@ namespace USBrelayDeviceNET
             [StructLayout(LayoutKind.Sequential, Pack = 1)]
             public struct SP_DEVICE_INTERFACE_DATA
             {
-                public uint Size;
+                public int Size;
                 private readonly Guid InterfaceClassGuid;
                 private readonly int Flags;
                 private readonly IntPtr Reserved;
@@ -1115,9 +1121,9 @@ namespace USBrelayDeviceNET
             [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Auto)]
             public struct SP_DEVICE_INTERFACE_DETAIL_DATA
             {
-                public uint cbSize;
+                public int cbSize;
 
-                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int) DETAIL_DATA_SIZE)]
+                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = DETAIL_DATA_SIZE)]
                 public readonly string DevicePath;
             }
 
@@ -1125,7 +1131,7 @@ namespace USBrelayDeviceNET
             [StructLayout(LayoutKind.Sequential)]
             public struct HIDD_ATTRIBUTES
             {
-                public uint Size;
+                public int Size;
                 public readonly ushort VendorID;
                 public readonly ushort ProductID;
                 private readonly ushort VersionNumber;
@@ -1149,7 +1155,7 @@ namespace USBrelayDeviceNET
                 ref Guid classGuid,
                 [MarshalAs(UnmanagedType.LPStr)] string enumerator,
                 IntPtr hwndParent,
-                uint Flags);
+                int Flags);
 
             /// <summary>
             /// Function enumerates the device interfaces that are contained in a device information set.
@@ -1166,7 +1172,7 @@ namespace USBrelayDeviceNET
                 SafeHandle DeviceInfoSet,
                 IntPtr DeviceInfoData, 
                 ref Guid InterfaceClassGuid,
-                uint MemberIndex,
+                int MemberIndex,
                 ref SP_DEVICE_INTERFACE_DATA DeviceInterfaceData);
 
             /// <summary>
@@ -1180,13 +1186,13 @@ namespace USBrelayDeviceNET
             /// <param name="DeviceInfoData">pointer to a buffer that receives information about the device, optional can be null</param>
             /// <returns>returns TRUE if the function completed without error.</returns>
             /// ref: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdigetdeviceinterfacedetaila
-            [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
+            [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
             public static extern bool SetupDiGetDeviceInterfaceDetail(
                 SafeHandle DeviceInfoSet,
                 ref SP_DEVICE_INTERFACE_DATA DeviceInterfaceData,
                 ref SP_DEVICE_INTERFACE_DETAIL_DATA DeviceInterfaceDetailData,
-                uint DeviceInterfaceDetailDataSize,
-                uint RequiredSize,
+                int DeviceInterfaceDetailDataSize,
+                int RequiredSize,
                 IntPtr DeviceInfoData);
 
             /// <summary>
@@ -1210,14 +1216,14 @@ namespace USBrelayDeviceNET
             /// <param name="hTemplateFile">handle to a template file with the GENERIC_READ access right.</param>
             /// <returns>If the function succeeds, the returns an open handle to the specified file, device.</returns>
             /// ref:  https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
-            [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+            [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
             public static extern SafeHandle CreateFile(
                 string lpFileName,
                 uint dwDesiredAccess,
-                uint dwShareMode,
+                int dwShareMode,
                 IntPtr lpSecurityAttributes,
-                uint dwCreationDisposition,
-                uint dwFlagsAndAttributes,
+                int dwCreationDisposition,
+                int dwFlagsAndAttributes,
                 IntPtr hTemplateFile);
 
             /// <summary>
