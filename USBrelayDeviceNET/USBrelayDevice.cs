@@ -729,9 +729,9 @@ namespace USBrelayDeviceNET
             var DevicePathList = new List<string>(); //return List
 
             // structure declarations
-            var devInterfaceDetailData = new NativeMethods.SP_DEVICE_INTERFACE_DETAIL_DATA(); // device detail data, contains data path
-            var devInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api calls
-            var deviceAttributes = new NativeMethods.HIDD_ATTRIBUTES(); //HID device attributes
+            var devInterfaceDetailData = new NativeMethods.SP_DEVICE_INTERFACE_DETAIL_DATA(); // device detail data, contains device path
+            var devInterfaceData = new NativeMethods.SP_DEVICE_INTERFACE_DATA(); //required for setup api enumeration calls
+            var deviceAttributes = new NativeMethods.HIDD_ATTRIBUTES(); //HID device attributes, contain Vid and Pid values for device
 
             // Set the size parameter for the structures
             devInterfaceDetailData.cbSize = (uint)(IntPtr.Size == sizeof(int)? 
@@ -739,7 +739,7 @@ namespace USBrelayDeviceNET
             devInterfaceData.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.SP_DEVICE_INTERFACE_DATA));
             deviceAttributes.Size = (uint)Marshal.SizeOf(typeof(NativeMethods.HIDD_ATTRIBUTES));
 
-            // device info set handle declarations
+            // device info set handle declaration
             var deviceInfoSet = new SafeHandle();
 
             // loop variable declarations
@@ -779,6 +779,7 @@ namespace USBrelayDeviceNET
                     try
                     {
                         // get device interface data from the device information set at member index
+                        // value of reserved member in SP_DEVICE_INTERFACE_DATA structure points to detail data
                         var result = NativeMethods.SetupDiEnumDeviceInterfaces(
                             deviceInfoSet,
                             IntPtr.Zero,
@@ -803,6 +804,7 @@ namespace USBrelayDeviceNET
                         memberIndex++;
 
                         // get path to device (found in SP_DEVICE_INTERFACE_DETAIL_DATA structure)
+                        // only single call to function required by using structures and passing fixed value for size
                         result = NativeMethods.SetupDiGetDeviceInterfaceDetail(
                             deviceInfoSet,
                             ref devInterfaceData,
@@ -865,7 +867,7 @@ namespace USBrelayDeviceNET
         /// </summary>
         /// <param name="devicePath">path to HID device</param>
         /// <param name="suppressError">true to suppress exception reporting</param>
-        /// <returns>on success returns handle to device, if fails returns 0</returns>
+        /// <returns>on success returns valid handle to device, if fails returns invalid handle</returns>
         private SafeHandle HID_OpenDdevice(string devicePath, bool suppressError)
         {
             try
@@ -1152,9 +1154,9 @@ namespace USBrelayDeviceNET
             /// <summary>
             /// Function enumerates the device interfaces that are contained in a device information set.
             /// </summary>
-            /// <param name="DeviceInfoSet">pointer to a device information set that contains the device interfaces</param>
+            /// <param name="DeviceInfoSet">handle to a device information set that contains the device interfaces</param>
             /// <param name="DeviceInfoData">pointer to an SP_DEVINFO_DATA structure. Optional can be set to zero</param>
-            /// <param name="InterfaceClassGuid">pointer to a GUID that specifies the device interface class.</param>
+            /// <param name="InterfaceClassGuid">GUID that specifies the device interface class.</param>
             /// <param name="MemberIndex">A zero-based index into the list of interfaces in the device information set.</param>
             /// <param name="DeviceInterfaceData">On successful return, a completed SP_DEVICE_INTERFACE_DATA structure</param>
             /// <returns>returns TRUE if the function completed without error.</returns>
@@ -1170,13 +1172,13 @@ namespace USBrelayDeviceNET
             /// <summary>
             /// Function returns details about a device interface.
             /// </summary>
-            /// <param name="DeviceInfoSet">pointer to the device information set, typically returned by SetupDiEnumDeviceInterfaces.</param>
-            /// <param name="DeviceInterfaceData">reference to a SP_DEVICE_INTERFACE_DATA structure</param>
-            /// <param name="DeviceInterfaceDetailData">reference to SP_DEVICE_INTERFACE_DETAIL_DATA structure.</param>
+            /// <param name="DeviceInfoSet">handle to the device information set, returned by SetupDiEnumDeviceInterfaces.</param>
+            /// <param name="DeviceInterfaceData">reference to a completed SP_DEVICE_INTERFACE_DATA structure</param>
+            /// <param name="DeviceInterfaceDetailData">On successful return, a completed SP_DEVICE_INTERFACE_DETAIL_DATA structure.</param>
             /// <param name="DeviceInterfaceDetailDataSize">Size of DeviceInterfaceDetailData buffer.</param>
             /// <param name="RequiredSize">variable that receives the required size of the DeviceInterfaceDetailData buffer.</param>
             /// <param name="DeviceInfoData">pointer to a buffer that receives information about the device, optional can be null</param>
-            /// <returns>Ignore return value.</returns>
+            /// <returns>returns TRUE if the function completed without error.</returns>
             /// ref: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdigetdeviceinterfacedetaila
             [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
             public static extern bool SetupDiGetDeviceInterfaceDetail(
@@ -1190,7 +1192,7 @@ namespace USBrelayDeviceNET
             /// <summary>
             /// Function deletes a device information set and frees all associated memory.
             /// </summary>
-            /// <param name="DeviceInfoSet">A handle to the device information set to delete.</param>
+            /// <param name="DeviceInfoSet">A pointer to the device information set to delete.</param>
             /// <returns>returns TRUE if it is successful.</returns>
             /// ref: https://learn.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdidestroydeviceinfolist
             [DllImport("setupapi.dll", SetLastError = true)]
@@ -1221,7 +1223,7 @@ namespace USBrelayDeviceNET
             /// <summary>
             /// Closes an open object handle.
             /// </summary>
-            /// <param name="handle">A valid handle to an open object.</param>
+            /// <param name="handle">A valid handle pointer to an open object.</param>
             /// <returns>returns TRUE if it is successful.</returns>
             /// ref: https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
             [DllImport("kernel32.dll", SetLastError = true)]
